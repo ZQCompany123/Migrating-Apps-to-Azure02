@@ -1,36 +1,28 @@
-# Stage 1: Build
-FROM mcr.microsoft.com/dotnet/sdk:9.0 AS build
-WORKDIR /source
-
-# Copy the project files and restore dependencies
-COPY *.sln .
-COPY AdventureWorks.Web.csproj .
-RUN dotnet restore AdventureWorks.Web.csproj
-
-# Copy the rest of the source code and build the application
+FROM mcr.microsoft.com/dotnet/sdk:7.0 AS build
+WORKDIR /src
 COPY . .
-RUN dotnet publish AdventureWorks.Web.csproj -c Release -o /app
+RUN dotnet restore
+RUN dotnet publish -c Release -o /app/publish
 
-# Stage 2: Runtime
-FROM mcr.microsoft.com/dotnet/aspnet:9.0-alpine AS runtime
+FROM mcr.microsoft.com/dotnet/aspnet:7.0-alpine AS runtime
 WORKDIR /app
 
 # Install required packages
 RUN apk add --no-cache \
+    icu-libs \
     tiff \
-    libgdiplus
+    libgdiplus \
+    libc-dev \
+    tzdata
 
-# Set the globalization invariant mode to false
+# Configure globalization
 ENV DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=false
 
-# Set the ASPNETCORE_URLS environment variable
+# Configure listening port
 ENV ASPNETCORE_URLS=http://+:8080
 
-# Copy the built application from the build stage
-COPY --from=build /app .
+# Copy published app
+COPY --from=build /app/publish .
 
-# Expose port 8080
 EXPOSE 8080
-
-# Run the application
-ENTRYPOINT ["dotnet", "AdventureWorks.Web.dll"]
+ENTRYPOINT ["dotnet", "CheckRide.dll"]
